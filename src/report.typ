@@ -1,6 +1,6 @@
 // DO NOT EDIT ANYTHING APART FROM THE AREA MENTIONED TO BE EDITABLE
 
-// 3 placeholder pages — concat.py overlays cover + title pages over these
+// 3 placeholder pages — build.py overlays cover + title pages over these
 #pagebreak()
 #pagebreak()
 #pagebreak()
@@ -22,7 +22,7 @@
 #counter(page).update(1)
 #show: numbered-header
 
-// ========= Move or rename these files to reorder ============================
+// ========= Move these files to reorder ======================================
 
 #include "chapters/1_introduction.typ"
 #include "chapters/2_project_definition.typ"
