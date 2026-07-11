@@ -1,4 +1,9 @@
+# Builds report.pdf from two pieces: the Typst-compiled body (src/report.typ)
+# and out/report-header.pdf (exported by hand from src/report-header.docx),
+# overlaid onto the body's leading blank pages. See config.typ for why.
+
 import logging
+import re
 import time
 import argparse
 import subprocess
@@ -8,28 +13,33 @@ from pypdf import PdfReader, PdfWriter
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# --- Dynamic Path Configuration ---
-SCRIPT_FILE = Path(__file__).resolve()
-ROOT_DIR = SCRIPT_FILE.parent
-
-# Input Sources (in src/)
+ROOT_DIR = Path(__file__).resolve().parent
+OUT_DIR = ROOT_DIR / "out"
 BODY_TYP = ROOT_DIR / "src" / "report.typ"
-
-# Intermediate PDFs (in out/)
-BODY_PDF = ROOT_DIR / "out" / "report-body.pdf"
-HEADER_PDF = ROOT_DIR / "out" / "report-header.pdf"
-
-# Final Result (sits in project root)
-OUTPUT_PDF = ROOT_DIR / "report.pdf"
+CONFIG_TYP = ROOT_DIR / "src" / "config.typ"
+BODY_PDF = OUT_DIR / "report-body.pdf"
+HEADER_PDF = OUT_DIR / "report-header.pdf"
 
 logging.getLogger("pypdf").setLevel(logging.ERROR)
+
+
+def _expected_header_page_count() -> int | None:
+    # Cross-checks report-header.pdf against config.typ's header-page-count
+    # so a stale docx export doesn't silently misalign onto the wrong pages.
+    match = re.search(r"header-page-count\s*=\s*(\d+)", CONFIG_TYP.read_text())
+    return int(match.group(1)) if match else None
+
+
 class BuildOrchestrator:
-    def __init__(self):
+    def __init__(self, output_pdf: Path, strict: bool = False, fast: bool = False):
+        self.output_pdf = output_pdf
+        self.strict = strict
+        self.fast = fast
         self._debounce_timer = None
 
     def merge_pdfs(self) -> None:
         if not (HEADER_PDF.exists() and BODY_PDF.exists()):
-            print(f"⚠️  Waiting for PDFs to exist in {SCRIPT_FILE}...")
+            print(f"⚠️  Missing PDFs in {OUT_DIR}")
             return
 
         try:
@@ -41,26 +51,37 @@ class BuildOrchestrator:
                 writer.add_metadata(body_reader.metadata)
 
             header_reader = PdfReader(str(HEADER_PDF))
-            for i, header_page in enumerate(header_reader.pages):
+            expected = _expected_header_page_count()
+            if expected is not None and len(header_reader.pages) != expected:
+                print(
+                    f"\033[93m⚠ WARNING:\033[0m report-header.pdf has "
+                    f"{len(header_reader.pages)} page(s) but config.typ's "
+                    f"header-page-count is {expected} — re-export the docx "
+                    "or update config.typ."
+                )
+            for i, page in enumerate(header_reader.pages):
                 if i < len(writer.pages):
-                    writer.pages[i].merge_page(header_page)
+                    writer.pages[i].merge_page(page)
 
-            with OUTPUT_PDF.open("wb") as out:
-                writer.write(out)
-            print(f"\033[92m✔ SUCCESS:\033[0m Built {OUTPUT_PDF.name}")
+            with self.output_pdf.open("wb") as f:
+                writer.write(f)
+            print(f"\033[92m✔ SUCCESS:\033[0m Built {self.output_pdf.name}")
         except Exception as e:
             print(f"\033[91m✘ MERGE ERROR:\033[0m {e}")
 
     def run_build(self):
-        print("\033[94m⏳ Compiling Typst...\033[0m")
+        if not self.strict:
+            print("\033[94m⏳ Compiling...\033[0m")
+        else:
+            print("\033[94m⏳ Compiling in compliance mode...\033[0m")
+        cmd = ["typst", "compile", str(BODY_TYP), str(BODY_PDF)]
+        if self.strict:
+            cmd[2:2] = ["--pdf-standard", "ua-1"]
         try:
-            subprocess.run(["typst", "compile", str(
-                BODY_TYP), str(BODY_PDF)], check=True)
-
+            subprocess.run(cmd, check=True)
             self.merge_pdfs()
         except subprocess.CalledProcessError:
-            print(
-                "\033[91m✘ TYPST ERROR:\033[0m Check src/report.typ for syntax errors.")
+            print("\033[91m✘ TYPST ERROR:\033[0m Check src/report.typ for syntax errors.")
 
     def debounced_build(self, delay=0.4):
         if self._debounce_timer:
@@ -70,32 +91,47 @@ class BuildOrchestrator:
 
 
 class TypstWatcher(FileSystemEventHandler):
-    def __init__(self, orchestrator):
+    def __init__(self, orchestrator: BuildOrchestrator):
         self.orch = orchestrator
 
+    def _relevant(self, path: str) -> bool:
+        return path.endswith((".typ", ".bib"))
+
     def on_modified(self, event):
-        # Watch the 'src' folder for any .typ or .bib changes
-        if event.src_path.endswith((".typ", ".bib")):
+        if self._relevant(str(event.src_path)):
+            self.orch.debounced_build()
+
+    def on_created(self, event):
+        if self._relevant(str(event.src_path)):
+            self.orch.debounced_build()
+
+    def on_moved(self, event):
+        if self._relevant(str(event.dest_path)):
             self.orch.debounced_build()
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--watch", action="store_true")
+    # CONFIGURE: change the default here if you'd rather not pass --name every time
+    parser.add_argument("--name", default="report", help="Output PDF filename (without .pdf)")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Add the PDF/UA-1 accessibility conformance (--pdf-standard ua-1). "
+        "Off by default.",
+    )
     args = parser.parse_args()
 
-    orchestrator = BuildOrchestrator()
-
-    # Run initial build
+    output_pdf = ROOT_DIR / f"{args.name}.pdf"
+    orchestrator = BuildOrchestrator(output_pdf, strict=args.strict)
     orchestrator.run_build()
 
     if args.watch:
-        event_handler = TypstWatcher(orchestrator)
+        handler = TypstWatcher(orchestrator)
         observer = Observer()
-        # Watch the SRC directory specifically
-        observer.schedule(event_handler, str(ROOT_DIR / "src"), recursive=True)
-
-        print(f"\033[1m🚀 WATCHING SRC FOLDER\033[0m")
+        observer.schedule(handler, str(ROOT_DIR / "src"), recursive=True)
+        print(f"\033[1m🚀 WATCHING:\033[0m {ROOT_DIR / 'src'}")
         observer.start()
         try:
             while True:
@@ -103,6 +139,12 @@ def main():
         except KeyboardInterrupt:
             observer.stop()
         observer.join()
+
+
+def watch():
+    import sys
+    sys.argv.append("--watch")
+    main()
 
 
 if __name__ == "__main__":

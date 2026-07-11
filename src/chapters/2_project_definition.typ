@@ -1,45 +1,90 @@
-= PROJECT DEFINITION AND SCOPE
+#import "../func/utils.typ": under-construction
 
-#lorem(100)
+= PRESENTATION OF THE PROJECT
+
+...
 
 == Problematic
+...
 
-#lorem(40)
-
-// unordered list
-- *#lorem(6)* #lorem(38)
-- *#lorem(5)* #lorem(58)
-- *#lorem(3)* #lorem(31)
-- *#lorem(5)* #lorem(42)
+- ...
+- ...
+- ...
+- ...
+- ...
 
 == Project Objective
+...
 
-#lorem(50)
-// ordered list
-+ #lorem(50)
-+ #lorem(43)
-+ #lorem(30)
+- ...
+- ...
+- ...
+- ...
+
 
 == Targeted Impact
 
-#lorem(60)
+...
 
 == Methodology
 
-The *lorem* project followed an *adaptive, sprint-based development approach*
-inspired by the Scrum framework. Unlike a rigid waterfall process where
-requirements are fully specified before development begins.
+...
 
-#lorem(75)
+== Project Timeline
+...
 
-=== Sprint Structure
+// @typstyle off
+#figure(
+  align(center)[
+    #set text(size: 10pt)
 
-#lorem(50)
+    #let task-row(..weeks) = (
+      ..weeks
+        .pos()
+        .map(w => {
+          if w == [x] {
+            table.cell(fill: rgb("#fede6a"))[]
+          } else {
+            []
+          }
+        }),
+    )
 
-=== Task and Backlog Management
+    #table(
+      columns: (23%, ..(77% / 24,) * 24),
+      table.header(
+        table.cell(align: center, rowspan: 2)[#strong[Tasks]],
+        table.cell(align: center, colspan: 24)[#strong[Weeks]],
+        ..range(1, 25).map(i => table.cell(align: center, inset: (y: 8pt, x: 0pt))[#strong[#i]]),
+      ),
+      inset: (left: 8pt, y: 7.7pt, right: 0pt),
 
-#lorem(50)
+      // Tasks
+      table.cell(align: left)[1],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [x], [x], [x], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
 
-=== Roles and Collaboration
+      table.cell(align: left)[2],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [ ], [x], [x], [ ], [ ], [ ], [ ], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
 
-#lorem(50)
+      table.cell(align: left)[3],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [x], [x], [x], [ ], [ ], [x], [x], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
+
+      table.cell(align: left)[4],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [x], [ ], [x], [ ], [x], [ ], [ ], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
+
+      table.cell(align: left)[5],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [x], [ ], [x], [ ], [ ], [x], [x], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
+
+      table.cell(align: left)[6],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [ ], [x], [x], [ ], [ ], [ ], [ ], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
+
+      table.cell(align: left)[7],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [x], [x], [x], [x], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
+
+      table.cell(align: left)[8],
+      ..task-row([ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [x], [x], [ ], [x], [x], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ], [ ]),
+    )
+  ],
+  caption: [The project timeline and how the work was split across the internship period over 24 weeks, noted by the colored cells.],
+) <activity_table>
+// @typstyle on
