@@ -2,3 +2,4 @@
 
 *.pdf
 ~$*.docx
+__pycache__
